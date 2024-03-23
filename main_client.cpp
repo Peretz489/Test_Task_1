@@ -9,7 +9,7 @@ int main(int argc, char **argv)
     //     std::cout << "Port value required to run";
     //     return 1;
     // }
-    Client test_client(3333,1);
+    Client test_client(3333,1); // remove hardcoded port number
     test_client.Connect();
     while (true){
         std::string text_to_send;

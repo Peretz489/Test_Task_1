@@ -11,7 +11,7 @@ public:
     explicit Server(uint16_t port);
     ~Server();
     void Start();
-    int GetSocket();
+    int GetSocket() const noexcept;
 
 private:
     uint16_t _port;
