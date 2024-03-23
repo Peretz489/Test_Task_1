@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <unistd.h>
+#include <chrono>
 
 Client::Client(uint16_t port, int request_interval)
 	: _port(port), _request_interval(request_interval)
