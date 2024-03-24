@@ -4,6 +4,8 @@
 #include <cstring>
 #include <iostream>
 #include <sys/poll.h>
+#include <thread>
+#include <sstream>
 
 Server::Server(uint16_t port)
     : _port(port)
@@ -48,9 +50,8 @@ int Server::GetSocket() const noexcept
     return _accept_socket;
 }
 
-void Read(int socket, bool &exit_flag)
+void Server::Poll(int socket, bool &exit_flag)
 {
-    char buff[256] = {0};
     while (true)
     {
         struct pollfd descriptor = {socket, POLLIN, 0};
@@ -63,29 +64,45 @@ void Read(int socket, bool &exit_flag)
         else if (ret == 0)
         {
             if (exit_flag)
-        {
-            std::cout << "exit signal recieved\n";
-            break;
-        }
+            {
+                std::cout << "exit signal recieved\n";
+                break;
+            }
         }
         else
         {
-            int bytes_recieved = recv(socket, buff, 256, 0);
-            if (bytes_recieved == 0)
-            {
-                std::cout << "client closed connection\n";
-                //exit_flag = true;
-                break;
-            }else if(bytes_recieved==-1){
-                std::cout << "recieve error\n";
-                //exit_flag = true;
-                break;
-            }
-            else
-            {
-                std::cout << "recieved: " << buff << "\nbytes=" << bytes_recieved << std::endl;
-                memset(buff, 0, 256);
-            }
+            std::thread reader(Server::ReadData, socket, _logger);
+            reader.detach();
         }
     }
 }
+
+void Server::ReadData(int socket, Logger *logger)
+{
+
+    char buff[256] = {0};
+    int bytes_recieved = recv(socket, buff, 256, 0);
+    if (bytes_recieved == 0)
+    {
+        std::cout << "client closed connection\n";
+        return;
+    }
+    else if (bytes_recieved == -1)
+    {
+        std::cout << "recieve error\n";
+    }
+    else
+    {
+        std::ostringstream out;
+        out << "recieved: " << buff << "\nbytes=" << bytes_recieved << std::endl;
+        logger->WriteToLog(out.str());
+        // std::cout << "recieved: " << buff << "\nbytes=" << bytes_recieved << std::endl;
+        memset(buff, 0, 256);
+    }
+}
+Server& Server::SetLogName(const std::string& filename){
+    _logger->SetLogName(filename);
+    return *this;
+}
+
+Logger* Server::_logger= Logger::Init();

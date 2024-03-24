@@ -1,30 +1,60 @@
 #include <sys/socket.h>
 #include <iostream>
 #include "client.h"
-#include <vector>
-#include <memory>
+#include <string>
+#include <chrono>
+#include <thread>
+
+struct Parameters
+{
+    std::string port;
+    std::string client_name;
+    int pull_interval;
+};
 
 int main(int argc, char **argv)
 {
-    if (argc < 2)
+    if (argc < 4)
     {
-        std::cout << "Port value required to run";
+        std::cout << "Usage: client -p[server port] -n[client name] -i[pull interval, s].\nAll parameters are required to run\n";
         return 1;
     }
-
-    std::string port{*argv[1]};
-    std::vector<std::unique_ptr<Client>> clients;
-    for (int request_interval = 1; request_interval <= 5; request_interval++)
-    {
-        clients.emplace_back(std::make_unique<Client>(std::atoi(port.c_str()),request_interval));
+    Parameters params;
+    for(int idx=1; idx<4; idx++){
+        switch (argv[idx][1]){
+            case 'p': {
+                //std::string port{argv[idx]};
+                char* port = argv[idx];
+                //params.port = std::atoi(port.substr(2).c_str()); //not best solution...
+                params.port = std::string(port+2);
+                continue;
+            }
+            case 'n':{
+                char* name = argv[idx];
+                params.client_name = std::string{name+2};
+                continue;
+            }
+            case 'i':{
+                char* pull_interval = argv[idx];
+                params.pull_interval= std::atoi(pull_interval+2);
+                continue;
+            }
+            default: {
+                //std::cout<<argv[idx][1]<<std::endl;
+                std::cout<<"Wrong parameter "<<argv[idx]<<". Client stopped.\n";
+                return 1;
+            }
+        }
     }
 
-    Client test_client(3333, 1); // remove hardcoded port number
-    test_client.Connect();
+    Client client(params.port, params.client_name, params.pull_interval);
+    //client.Connect();
     while (true)
     {
-        std::string text_to_send;
-        std::getline(std::cin, text_to_send);
-        test_client.Send(text_to_send);
+        int bytes_send = client.Send();
+        if(bytes_send<=0){
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(params.pull_interval));
     }
 }

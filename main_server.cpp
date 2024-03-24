@@ -4,6 +4,7 @@
 #include <thread>
 #include <termios.h>        //termios, TCSANOW, ECHO, ICANON
 #include <unistd.h> 
+#include <logger.h>
 
 int main(int argc, char **argv)
 {
@@ -12,10 +13,13 @@ int main(int argc, char **argv)
     //     std::cout << "Port value required to run";
     //     return 1;
     // }
+    //Logger* logger = Logger::Init("log.txt");
+    Logger* Logger = Logger::Init();
     Server test_server(3333); //hardcoded port number
+    test_server.SetLogName("log.txt");
     test_server.Start();
     bool exit_flag = false;
-    std::thread t1(Read, test_server.GetSocket(), std::ref(exit_flag));
+    std::thread t1(Server::Poll, test_server.GetSocket(), std::ref(exit_flag));
     //-----------check this part carefuly---------
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     //std::cout << "Press key to continue....\n";

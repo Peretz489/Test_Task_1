@@ -6,41 +6,44 @@
 #include <unistd.h>
 #include <chrono>
 
-Client::Client(uint16_t port, int request_interval)
-	: _port(port), _request_interval(request_interval)
+Client::Client(std::string port, std::string name, int request_interval)
+	: _port(port), _client_name(name), _request_interval(request_interval)
 {
-	std::cerr << "client created\n";
+	std::cerr << "client " << _client_name << " created\n";
 }
-Client::~Client(){
+Client::~Client()
+{
 	close(_socket);
 }
 
 void Client::Connect()
 {
-	int status;
 	struct addrinfo info;
 	struct addrinfo *server_info;
 	std::memset(&info, 0, sizeof(info));
 	info.ai_family = AF_INET;
 	info.ai_socktype = SOCK_STREAM;
 	info.ai_flags = AI_PASSIVE;
-	if (status = getaddrinfo("localhost", "3333", &info, &server_info) != 0)
+	if (getaddrinfo("localhost", _port.c_str(), &info, &server_info) != 0)
 	{
-		std::cerr << "Wrong data in getadddrinfo\n";
+		std::cerr << "Wrong server data\n";
 		return;
 	}
 	_socket = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
 
-	int connected;
-	if (connected = connect(_socket, server_info->ai_addr, server_info->ai_addrlen) != 0)
+	//int connected;
+	if (connect(_socket, server_info->ai_addr, server_info->ai_addrlen) != 0)
 	{
 		std::cerr << "No connection\n";
 		return;
 	}
 }
 
-int Client::Send(std::string& out_text){
-	int bytes_send = send(_socket, out_text.c_str(), out_text.size(), 0);
+int Client::Send()
+{
+	Connect();
+	int bytes_send = send(_socket, _client_name.c_str(), _client_name.size(), 0);
 	std::cout << "send " << bytes_send << " bytes \n";
+	close(_socket);
 	return bytes_send;
 }
