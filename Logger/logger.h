@@ -10,7 +10,7 @@ public:
     static Logger* Init();
     void SetLogName(const std::string &filename);
     bool WriteToLog(const std::string &event);
-    tm* GetTime();
+    std::string GetTime();
 
 private:
     Logger()= default;

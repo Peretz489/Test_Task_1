@@ -1,15 +1,10 @@
 #include "logger.h"
 #include <iostream>
+#include <chrono>
+#include <sstream>
 
 // Logger::~Logger(){
 // }
-
-std::ostream &operator<<(std::ostream &out, tm *time_p)
-{
-
-    out << time_p->tm_year << " " << time_p->tm_mon << " " << time_p->tm_mday << " " << time_p->tm_hour << ":" << time_p->tm_min << ":" << time_p->tm_sec << ": ";
-    return out;
-}
 
 Logger *Logger::Init()
 {
@@ -24,18 +19,45 @@ void Logger::SetLogName(const std::string &filename)
 
 bool Logger::WriteToLog(const std::string &event)
 {
-    tm *event_time = GetTime();
     std::lock_guard<std::mutex> guard(_mu);
     std::fstream out(_log_filename, std::ios::app);
-    out << event_time << event << std::endl;
+    out << GetTime() << " " << event << std::endl;
     _out.close();
-    delete(event_time);
     return true; // remove
 }
 
-tm *Logger::GetTime()
+std::string Logger::GetTime()
 {
-    time_t now = time(0);
-    tm *current_time = localtime(&now);
-    return current_time;
+    using std::chrono::system_clock;
+    auto currentTime = std::chrono::system_clock::now();
+    char buffer[80];
+
+    auto transformed = currentTime.time_since_epoch().count() / 1000000;
+
+    auto millis = transformed % 1000;
+
+    std::time_t tt;
+    tt = system_clock::to_time_t(currentTime);
+    auto timeinfo = localtime(&tt);
+    strftime(buffer, 80, "%F %H:%M:%S", timeinfo);
+    std::stringstream out;
+    out << buffer << ".";
+    if (millis == 0)
+    {
+        out << "000";
+    }
+    else if (millis < 10)
+    {
+        out << "00" << millis;
+    }
+    else if (millis < 100)
+    {
+        out << "0" << millis;
+    }
+    else
+    {
+        out << millis;
+    };
+
+    return out.str();
 }
