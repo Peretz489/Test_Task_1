@@ -44,6 +44,5 @@ int Client::Send()
 	Connect();
 	int bytes_send = send(_socket, _client_name.c_str(), _client_name.size(), 0);
 	std::cout << "send " << bytes_send << " bytes \n";
-	close(_socket);
 	return bytes_send;
 }

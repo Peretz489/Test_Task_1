@@ -6,6 +6,29 @@
 #include <sys/poll.h>
 #include <thread>
 #include <sstream>
+#include <unistd.h>
+
+void AcceptConnections(int socket, std::list<int> &accepted_sockets)
+{
+    struct sockaddr_storage incoming;
+    socklen_t addr_size = sizeof(incoming);
+    std::mutex mu;
+    while (true)
+    {
+        mu.lock();
+        accepted_sockets.push_back(accept(socket, (struct sockaddr *)&incoming, &addr_size));
+        // if (setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(flag)) == -1)
+        //     return false;
+        // if (setsockopt(socket, IPPROTO_TCP, TCP_KEEPIDLE, &ka_conf.ka_idle, sizeof(ka_conf.ka_idle)) == -1)
+        //     return false;
+        // if (setsockopt(socket, IPPROTO_TCP, TCP_KEEPINTVL, &ka_conf.ka_intvl, sizeof(ka_conf.ka_intvl)) == -1)
+        //     return false;
+        // if (setsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, &ka_conf.ka_cnt, sizeof(ka_conf.ka_cnt)) == -1)
+        //     return false;
+        std::cout << accepted_sockets.back() << std::endl;
+        mu.unlock();
+    }
+}
 
 Server::Server(uint16_t port)
     : _port(port)
@@ -15,11 +38,15 @@ Server::Server(uint16_t port)
 Server::~Server()
 {
     shutdown(_socket, 0);
+    for (auto socket : _accepted_sockets)
+    {
+        close(socket);
+    }
+    close(_socket);
 }
 
 void Server::Start()
 {
-    // int status;
     struct addrinfo info;
     struct addrinfo *server_info;
     std::memset(&info, 0, sizeof(info));
@@ -32,53 +59,75 @@ void Server::Start()
         return;
     }
     _socket = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
-
-    // int binded;
     if (int binded = bind(_socket, server_info->ai_addr, server_info->ai_addrlen) != 0)
     {
         std::cerr << "Not binded\n";
         return;
     }
-    listen(_socket, 2);
+    listen(_socket, 3); // max number of clients awating connection = 2
+
+    _accepter = std::thread([this]
+                            {                    
     struct sockaddr_storage incoming;
     socklen_t addr_size = sizeof(incoming);
-    _accept_socket = accept(_socket, (struct sockaddr *)&incoming, &addr_size);
-}
-
-int Server::GetSocket() const noexcept
-{
-    return _accept_socket;
-}
-
-void Server::Poll(int socket, bool &exit_flag)
-{
+    std::mutex mu;
     while (true)
     {
-        struct pollfd descriptor = {socket, POLLIN, 0};
-        int ret = poll(&descriptor, 1, 100);
-        if (ret == -1)
-        {
-            std::cout << "poll error occured, exiting\n";
+        mu.lock();
+        this->_accepted_sockets.push_back(accept(this->_socket, (struct sockaddr *)&incoming, &addr_size));
+        std::cout << this->_accepted_sockets.back() << std::endl;
+        mu.unlock();
+        if(this->_stop_command){
             break;
         }
-        else if (ret == 0)
+    } });
+
+    _pooler = std::thread([this]
+                          {                 
+    while (true)
+    {
+        for (auto socket : this->_accepted_sockets)
         {
-            if (exit_flag)
+            if (this->_stop_command)
+                {
+                    std::cout << "exit signal recieved\n";
+                    return;
+                }
+            struct pollfd descriptor = {socket, POLLIN, 0};
+            int ret = poll(&descriptor, 1, 100);
+            if (ret == -1)
             {
-                std::cout << "exit signal recieved\n";
+                std::cout << "poll error occured, exiting\n";
                 break;
             }
+            else if (ret == 0)
+            {
+                continue; // socket closed?
+            }
+            else
+            {
+                this->ReadData(socket);
+            }
         }
-        else
-        {
-            std::thread reader(Server::ReadData, socket, _logger);
-            reader.detach();
-        }
-    }
+    } });
 }
 
-void Server::ReadData(int socket, Logger *logger)
+void Server::Stop() noexcept
 {
+    _stop_command = true;
+    _pooler.join();
+    _accepter.join();
+}
+
+const std::list<int> &Server::GetSockets() const noexcept
+{
+    return _accepted_sockets;
+}
+
+void Server::ReadData(int socket)
+{
+    _reader = std::thread([this, socket]
+                          {
 
     char buff[256] = {0};
     int bytes_recieved = recv(socket, buff, 256, 0);
@@ -95,14 +144,16 @@ void Server::ReadData(int socket, Logger *logger)
     {
         std::ostringstream out;
         out << "recieved: " << buff << "\nbytes=" << bytes_recieved << std::endl;
-        logger->WriteToLog(out.str());
-        // std::cout << "recieved: " << buff << "\nbytes=" << bytes_recieved << std::endl;
+        this->_logger->WriteToLog(out.str());
         memset(buff, 0, 256);
-    }
+    } });
+    _reader.detach();
 }
-Server& Server::SetLogName(const std::string& filename){
+
+Server &Server::SetLogName(const std::string &filename)
+{
     _logger->SetLogName(filename);
     return *this;
 }
 
-Logger* Server::_logger= Logger::Init();
+Logger *Server::_logger = Logger::Init();

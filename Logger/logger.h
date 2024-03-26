@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <mutex>
+#include <ctime>
 
 class Logger
 {
@@ -9,10 +10,11 @@ public:
     static Logger* Init();
     void SetLogName(const std::string &filename);
     bool WriteToLog(const std::string &event);
+    tm* GetTime();
 
 private:
     Logger()= default;
-    ~Logger();
+    ~Logger()= default;
     Logger(Logger &other) = delete;
     Logger &operator=(Logger &other) = delete;
     

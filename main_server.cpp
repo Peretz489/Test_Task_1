@@ -6,6 +6,7 @@
 #include <unistd.h> 
 #include <logger.h>
 
+
 int main(int argc, char **argv)
 {
     // if (argc != 2)
@@ -18,8 +19,7 @@ int main(int argc, char **argv)
     Server test_server(3333); //hardcoded port number
     test_server.SetLogName("log.txt");
     test_server.Start();
-    bool exit_flag = false;
-    std::thread t1(Server::Poll, test_server.GetSocket(), std::ref(exit_flag));
+    //std::thread t1(Server::Poll, std::ref(test_server.GetSockets()), std::ref(exit_flag));
     //-----------check this part carefuly---------
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     //std::cout << "Press key to continue....\n";
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     std::cin.get();
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
     //----------------------
-    exit_flag = true;
+    test_server.Stop();
     std::cout << "server stopped\n";
-    t1.join();
+    //t1.join();
 }
