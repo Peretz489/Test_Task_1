@@ -30,8 +30,6 @@ void Client::Connect()
 		return;
 	}
 	_socket = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
-
-	//int connected;
 	if (connect(_socket, server_info->ai_addr, server_info->ai_addrlen) != 0)
 	{
 		std::cerr << "No connection\n";
@@ -41,7 +39,7 @@ void Client::Connect()
 
 int Client::Send()
 {
-	Connect();
+	//Connect();
 	int bytes_send = send(_socket, _client_name.c_str(), _client_name.size(), 0);
 	std::cout << "send " << bytes_send << " bytes \n";
 	return bytes_send;

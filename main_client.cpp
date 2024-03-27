@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     }
 
     Client client(params.port, params.client_name, params.pull_interval);
-    //client.Connect();
+    client.Connect();
     while (true)
     {
         int bytes_send = client.Send();

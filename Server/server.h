@@ -7,30 +7,46 @@
 #include <mutex>
 #include <list>
 #include <thread>
+#include <map>
 
 class Server
 {
 
+    typedef int Socket;
+    typedef int AcceptedSocket;
+    
+
+    enum class ClientStatus{
+        CONNECTED,
+        DISCONNECTED
+    };
+
+    struct Client
+    {
+        sockaddr_storage descriptor;
+        socklen_t  descriptor_size;
+        AcceptedSocket socket;
+        ClientStatus status;
+    };
+
+    using ClientList = std::list<std::unique_ptr<Client>>;
+    using ClientIt = std::list<std::unique_ptr<Client>>::iterator;
+
 public:
-    explicit Server(uint16_t port);
-    ~Server();
-    void Start();
-    //void AcceptConnections();
-    const std::list<int>& GetSockets() const noexcept;
-    //static void Poll(const std::list<int>& sockets, bool &exit_flag);
-    void ReadData(int socket);
-    Server& SetLogName(const std::string& filename);
+    explicit Server(std::string port, const std::string& log_name);
+    bool Start();
     void Stop() noexcept;
 
 private:
-    uint16_t _port;
-    int _socket;
-    std::list<int>_accepted_sockets{};
+    void ReadData(ClientIt It);
+    std::string _port;
+    Socket _socket;
+    ClientList _connected_clients;
     std::mutex _mu;
     std::string _log_filename;
     static Logger *_logger;
 
-    bool _stop_command=false;
+    bool _stop_command = false;
 
     std::thread _accepter;
     std::thread _reader;
