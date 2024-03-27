@@ -10,7 +10,6 @@ const int MAX_CONNECTIONS = 100;
 const std::string LOCAL_ADDRESS = "127.0.0.1";
 const int POLL_TIMEOUT = 10;
 
-
 Server::Server(std::string port, const std::string &log_name)
     : _port(port)
 {
@@ -44,8 +43,7 @@ bool Server::Start()
     {
         sockaddr_storage descriptor;
         std::memset(&descriptor, 0, sizeof(info));
-auto client_ptr = std::make_unique<Client>(Client{descriptor, sizeof(sockaddr_storage), 0});
-
+        auto client_ptr = std::make_unique<Client>(Client{descriptor, sizeof(sockaddr_storage), 0});
         client_ptr->socket = accept(this->_socket, (struct sockaddr *)&client_ptr->descriptor, &client_ptr->descriptor_size);
         if (client_ptr->socket==-1){
             break;
@@ -54,8 +52,7 @@ auto client_ptr = std::make_unique<Client>(Client{descriptor, sizeof(sockaddr_st
         _mu.lock();
         this->_connected_clients.emplace_back(std::move(client_ptr));
         _mu.unlock();
-    } 
-    });
+    } });
 
     _pooler = std::thread([this]
                           {                 
@@ -91,16 +88,15 @@ auto client_ptr = std::make_unique<Client>(Client{descriptor, sizeof(sockaddr_st
             ++It;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(POLL_TIMEOUT));
-    } 
-    });
+    } });
     return true;
 }
 
 void Server::Stop() noexcept
 {
-    std::cout<<"Stop command recieved by server"<<std::endl;
+    std::cout << "Stop command recieved by server" << std::endl;
     _stop_command = true;
-     shutdown(_socket, 0);
+    shutdown(_socket, 0);
     for (auto &client : _connected_clients)
     {
         close(client->socket);
